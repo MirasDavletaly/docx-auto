@@ -1,0 +1,29 @@
+# Сервер DocFlow на Synology: api, migrate, admin (docs/deploy-synology.md).
+#
+# Ничего не компилирует: бинарники собраны и проверены тестами на компьютере
+# разработчика (scripts/deploy/pack-synology.ps1) – для amd64 и arm64.
+
+# ── 1. Выбор архитектуры ─────────────────────────────────────────────────
+# Сборка идёт на самом NAS, и uname -m здесь – его процессор. Заодно
+# бинарникам ставится признак «исполняемый»: в архиве, собранном на
+# Windows, его нет.
+FROM busybox:1.37 AS pick
+COPY bin /pkg-bin
+RUN set -e; \
+    case "$(uname -m)" in \
+      x86_64) arch=amd64 ;; \
+      aarch64) arch=arm64 ;; \
+      *) echo "процессор $(uname -m) не поддерживается: пакет собран для amd64 и arm64" >&2; exit 1 ;; \
+    esac; \
+    mkdir /out; \
+    for cmd in api migrate admin; do cp "/pkg-bin/linux-$arch/$cmd" /out/; done; \
+    chmod 0555 /out/*
+
+# ── 2. Образ ─────────────────────────────────────────────────────────────
+# distroless без оболочки и пакетного менеджера: в контейнере нечем
+# воспользоваться, кроме самих команд DocFlow. Пользователь – nonroot.
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY --from=pick /out/ /usr/local/bin/
+
+USER nonroot:nonroot

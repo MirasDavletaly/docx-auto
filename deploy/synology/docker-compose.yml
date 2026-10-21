@@ -1,0 +1,198 @@
+# DocFlow на Synology: база, сервер API, сайт и служебные init и migrate
+# (docs/deploy-synology.md, docs/adr/0004-synology.md).
+#
+# Запускает deploy/synology/install.sh – задачей DocFlow install в Task
+# Scheduler DSM: он задаёт порядок (база → init → migrate → сервер и сайт).
+# Файл понимает и docker-compose первой версии из пакета Docker для DSM 6.2
+# (1.28 и новее): поэтому здесь нет top-level name (имя проекта –
+# COMPOSE_PROJECT_NAME в .env) и условий «дождаться завершения».
+#
+# Рядом должен лежать .env (scripts/deploy/make-env.ps1).
+#
+# Папки рядом с пакетом (/volume1/docker):
+#   docflow/import/     – копия базы для переноса (один раз, потом удалить)
+#   docflow-backups/    – копии базы: перед каждой установкой и ночные
+#
+# Наружу открыт один порт – HTTPS сайта (8443 на NAS); роутер передаёт
+# туда внешний 443. База и сервер API доступны лишь внутри сети Docker.
+#
+# Имена контейнеров и сети постоянные: команды из инструкции
+# (docker exec docflow-db …) не зависят от имени проекта.
+
+# Образ сервера один на api и migrate.
+x-server-build: &server-build
+  context: ../..
+  dockerfile: deploy/synology/Dockerfile.server
+
+# Ограничения для команд DocFlow: файлы только для чтения, без прав root,
+# без получения новых прав.
+x-hardened: &hardened
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    # 18 – как база разработки: копия из 18-й в 16-ю не ложится.
+    image: postgres:18-alpine
+    container_name: docflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: docflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DOCFLOW_DB_OWNER_PASSWORD:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+    volumes:
+      # С 18-й версии образа данные лежат в /var/lib/postgresql/18/docker,
+      # том подключается на уровень выше – так велит описание образа.
+      - pgdata:/var/lib/postgresql
+      # Ночная копия: docker exec docflow-db bash /docflow/db.sh backup
+      - ./db.sh:/docflow/db.sh:ro
+      - ../../../docflow-backups:/backups
+    healthcheck:
+      # По TCP, а не через сокет: при первом запуске образ поднимает
+      # временный сервер только на сокете, чтобы создать базу, и
+      # останавливает его. По TCP отвечает лишь настоящий сервер.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d docflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    logging: *logging
+
+  # Перед миграциями (db.sh init): пароль роли приложения по .env; перенос
+  # копии из import/ в пустую базу; копия базы, если база не пустая. Права
+  # root по умолчанию – чтобы прочитать файл, загруженный через File Station
+  # с правами DSM. Профиль setup: запускает только install.sh.
+  init:
+    image: postgres:18-alpine
+    container_name: docflow-init
+    profiles: ["setup"]
+    command: ["bash", "/docflow/db.sh", "init"]
+    restart: "no"
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: docflow
+      PGPASSWORD: ${DOCFLOW_DB_OWNER_PASSWORD}
+      DOCFLOW_DB_APP_PASSWORD: ${DOCFLOW_DB_APP_PASSWORD:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+    volumes:
+      - ./db.sh:/docflow/db.sh:ro
+      - ../../import:/import:ro
+      - ../../../docflow-backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  # Миграции – владельцем базы: у роли приложения нет прав менять схему.
+  migrate:
+    build: *server-build
+    image: docflow-server
+    container_name: docflow-migrate
+    profiles: ["setup"]
+    command: ["/usr/local/bin/migrate"]
+    restart: "no"
+    environment:
+      DATABASE_OWNER_URL: postgres://postgres:${DOCFLOW_DB_OWNER_PASSWORD}@db:5432/docflow?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *hardened
+    logging: *logging
+
+  api:
+    build: *server-build
+    image: docflow-server
+    container_name: docflow-api
+    command: ["/usr/local/bin/api"]
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      LOG_JSON: "true"
+      LOG_LEVEL: info
+      HTTP_ADDR: ":8080"
+      # Показатели – только внутри контейнера, наружу не публикуются.
+      METRICS_ADDR: "127.0.0.1:9090"
+      # Адрес клиента – из X-Forwarded-For, который ставит Caddy
+      # (Caddyfile). Сервер виден только Caddy.
+      HTTP_TRUST_PROXY: "true"
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_JWT_SECRET: ${DOCFLOW_JWT_SECRET:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+      # Роль приложения: без BYPASSRLS, видит только строки своей компании.
+      DATABASE_URL: postgres://docflow_app:${DOCFLOW_DB_APP_PASSWORD}@db:5432/docflow?sslmode=disable
+    # База может подняться позже (перезагрузка NAS): сервер подключается к
+    # ней, когда она готова, и не падает.
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *hardened
+    pids_limit: 200
+    mem_limit: 256m
+    logging: *logging
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/synology/Dockerfile.web
+    image: docflow-web
+    container_name: docflow-web
+    restart: unless-stopped
+    ports:
+      # HTTPS. Роутер: внешний TCP 443 → этот порт NAS. 443 на самом NAS
+      # занят веб-сервером DSM.
+      - "${DOCFLOW_HTTPS_PORT:-8443}:443"
+      # Сайт по http – только для посредника на самом NAS (Tailscale Funnel,
+      # DOCFLOW_TLS=off). Из сети и из интернета этот порт не виден.
+      - "127.0.0.1:${DOCFLOW_LOCAL_PORT:-8088}:80"
+    environment:
+      DOCFLOW_SITE_NAME: ${DOCFLOW_SITE_NAME:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+      DOCFLOW_AUTH_USER: docflow
+      # acme – сертификат Let's Encrypt; off – HTTPS у Tailscale Funnel.
+      DOCFLOW_TLS: ${DOCFLOW_TLS:-acme}
+      # on – пароль на сайт (логин docflow); off – только вход в DocFlow.
+      DOCFLOW_SITE_AUTH: ${DOCFLOW_SITE_AUTH:-on}
+      # Хеш для basic_auth считает web-start.sh при запуске.
+      DOCFLOW_SITE_PASSWORD: ${DOCFLOW_SITE_PASSWORD:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+      # Пустой ключ открыл бы сайт без пароля (Caddyfile, «пропуск»).
+      DOCFLOW_GATE_TOKEN: ${DOCFLOW_GATE_TOKEN:?нет .env рядом с docker-compose.yml – scripts/deploy/make-env.ps1}
+    volumes:
+      # Сертификат Let's Encrypt и ключ к нему: переживают пересборку.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    <<: *hardened
+    tmpfs:
+      - /tmp
+    # Caddy занимает порты 443 и 80 внутри контейнера; у программы caddy в
+    # образе есть файловое право на это, без него в наборе ядро не даст её
+    # запустить вовсе.
+    cap_add:
+      - NET_BIND_SERVICE
+    pids_limit: 200
+    mem_limit: 256m
+    logging: *logging
+
+networks:
+  default:
+    name: docflow
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

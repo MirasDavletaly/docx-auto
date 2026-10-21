@@ -1,0 +1,55 @@
+# Публикация сайта DocFlow на сервере (docs/deploy.md).
+#
+#   cd deploy
+#   cp .env.example .env      # заполнить
+#   mkdir -p logs
+#   docker compose build --pull && docker compose up -d
+#
+# Обычно всё это делает deploy/setup-server.sh.
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: docflow-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOCFLOW_DOMAIN: ${DOCFLOW_DOMAIN:?укажите DOCFLOW_DOMAIN в deploy/.env}
+      DOCFLOW_ACME_EMAIL: ${DOCFLOW_ACME_EMAIL:?укажите DOCFLOW_ACME_EMAIL в deploy/.env}
+      DOCFLOW_AUTH_USER: ${DOCFLOW_AUTH_USER:?укажите DOCFLOW_AUTH_USER в deploy/.env}
+      DOCFLOW_AUTH_HASH: ${DOCFLOW_AUTH_HASH:?укажите DOCFLOW_AUTH_HASH в deploy/.env}
+    volumes:
+      # Сертификаты HTTPS переживают пересборку и перезапуск.
+      - caddy_data:/data
+      - caddy_config:/config
+      # Журнал запросов – на сервер: его читает fail2ban (deploy/fail2ban).
+      - ./logs:/var/log/caddy
+    # Контейнер ограничен тем, что нужно веб-серверу: файлы сайта – только
+    # для чтения (писать можно лишь в сертификаты, журнал и /tmp), из прав
+    # root оставлено одно – занять порты 80 и 443, получить новые права
+    # нельзя, число процессов ограничено.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

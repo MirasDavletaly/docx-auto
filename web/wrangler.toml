@@ -1,0 +1,24 @@
+# Пробная выкладка сайта на Cloudflare Workers (демонстрация внешнему человеку).
+#
+# Выкладывать нужно **сборку** (`dist`), а не исходники: в `index.html`
+# исходников стоит `<script src="/src/main.tsx">`, который умеет открывать
+# только dev-сервер Vite. Если выложить корень `web/`, браузер получает
+# TypeScript вместо JavaScript, отказывается его выполнять, и страница
+# остаётся пустой – именно это и было на dockflow.davletalymiras805.workers.dev.
+#
+# `not_found_handling = "single-page-application"` отдаёт `index.html` на любой
+# неизвестный путь: без него прямая ссылка (/login, /documents) даёт 404,
+# потому что маршруты разбирает React Router в браузере.
+#
+# Порядок: npm run build  →  npx wrangler deploy
+#
+# Внимание: это только сайт. Запросы к `/api` обслуживает сервер на Go
+# (deploy/docker-compose.yml); на Workers его нет, поэтому вход в такой
+# выкладке не работает – она годится лишь показать внешний вид.
+
+name = "dockflow"
+compatibility_date = "2026-10-02"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

@@ -1,0 +1,200 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(280px, 38%) 1fr;
+  min-height: 100vh;
+}
+
+/* ── Левая половина: стол ─────────────────────────────────────────────── */
+
+.desk {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-10) var(--space-9);
+  background: var(--ink-700);
+  color: #fff;
+
+  /*
+    Едва различимая сетка в клетку — как расчерченная страница журнала
+    регистрации. Заметить её нельзя, но плоскость перестаёт быть пустой.
+  */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.deskTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.brandMark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brandName {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.deskLine {
+  max-width: 22ch;
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.deskFoot {
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Правая половина: лист ────────────────────────────────────────────── */
+
+.sheet {
+  display: grid;
+  place-items: center;
+  padding: var(--space-9);
+  background: var(--surface);
+}
+
+.form {
+  width: 100%;
+  max-width: 380px;
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-9);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sheet);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-600);
+}
+
+.input {
+  height: 38px;
+  padding: 0 var(--space-5);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease;
+}
+
+.input:hover {
+  border-color: var(--ink-300);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+}
+
+.notice {
+  padding: var(--space-4) var(--space-5);
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+}
+
+.error {
+  padding: var(--space-4) var(--space-5);
+  background: var(--state-rejected-soft);
+  border-left: 2px solid var(--state-rejected);
+  color: var(--state-rejected);
+  font-size: var(--text-sm);
+}
+
+.submit {
+  height: 40px;
+  background: var(--accent);
+  color: var(--accent-on);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background 120ms ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Пояснение под формой первого запуска: зачем этот экран вообще. */
+.lead {
+  margin-top: calc(-1 * var(--space-3));
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-500);
+}
+
+@media (max-width: 820px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .desk {
+    gap: var(--space-6);
+    padding: var(--space-8) var(--space-7);
+  }
+
+  .deskLine {
+    font-size: var(--text-xl);
+  }
+
+  .sheet {
+    padding: var(--space-7) var(--space-6);
+  }
+
+  .form {
+    padding: var(--space-7);
+  }
+}

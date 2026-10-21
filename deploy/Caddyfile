@@ -1,0 +1,96 @@
+# Веб-сервер DocFlow (docs/deploy.md, docs/adr/0002-publikaciya-caddy.md).
+#
+# Caddy сам получает и продлевает сертификат HTTPS для домена. HTTPS здесь
+# обязателен, а не желателен: пароли на сайте проверяются через WebCrypto,
+# а браузер даёт его только на защищённых страницах.
+#
+# Значения – из переменных окружения (deploy/.env):
+#   DOCFLOW_DOMAIN      домен сайта: docs.example.kz
+#   DOCFLOW_ACME_EMAIL  почта для писем о сертификате
+#   DOCFLOW_AUTH_USER   логин пароля на весь сайт
+#   DOCFLOW_AUTH_HASH   хеш пароля (caddy hash-password)
+{
+	email {$DOCFLOW_ACME_EMAIL}
+
+	# Управляющий интерфейс Caddy не нужен: сайт обновляется пересборкой
+	# контейнера, а не командой reload. Выключен – нечего и атаковать.
+	admin off
+
+	# Сроки на каждое соединение: медленный клиент не держит сервер вечно.
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 10s
+			write 60s
+			idle 2m
+		}
+	}
+}
+
+{$DOCFLOW_DOMAIN} {
+	# Пароль на весь сайт, до входа в само приложение. В коде сайта лежат
+	# реквизиты компаний (БИН, счета) – без этого их скачал бы любой, кто
+	# знает адрес. Снять – убрать этот блок (и понимать последствия).
+	basic_auth {
+		{$DOCFLOW_AUTH_USER} {$DOCFLOW_AUTH_HASH}
+	}
+
+	# Журнал запросов (JSON). По нему fail2ban блокирует адрес, с которого
+	# подбирают пароль на сайт (deploy/fail2ban). Пароль в журнал не пишется:
+	# Caddy заменяет заголовок Authorization на REDACTED.
+	log {
+		output file {$DOCFLOW_ACCESS_LOG:/var/log/caddy/access.log} {
+			roll_size 10MiB
+			roll_keep 10
+			roll_keep_for 2160h
+		}
+		format json
+	}
+
+	encode zstd gzip
+
+	# Заголовки безопасности – на всех ответах, включая 401 (запрос пароля):
+	# в этом блоке нет удаления, поэтому Caddy ставит их сразу, а не в конце
+	# ответа, до которого ошибка не доходит.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Та же политика, что в index.html (web/src/security/csp.ts), плюс запрет
+		# встраивать сайт в чужие страницы – его в <meta> не задать. Совпадение
+		# проверяет тест web/src/security/csp.test.ts.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	}
+	# Версию сервера не называем. Отдельно: удаление Caddy откладывает до
+	# конца ответа, и в общем блоке оно отложило бы и заголовки выше.
+	header -Server
+
+	root * "{$DOCFLOW_SITE_ROOT:/srv}"
+
+	# Файлы сборки с хешем в имени не меняются – кешируются надолго.
+	# Несуществующий файл – честный 404 без долгого кеша, а не index.html:
+	# иначе браузер запомнил бы страницу под именем скрипта навсегда.
+	handle /assets/* {
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Адреса страниц сайта (/documents/…, /admin) – это один index.html,
+	# всегда свежий, иначе после обновления открывалась бы старая версия.
+	handle {
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Ответы-ошибки (401, 404) Caddy отдаёт мимо обычного конца ответа, и
+	# отложенное удаление заголовка до них не доходит – здесь то же ещё раз.
+	handle_errors {
+		header -Server
+	}
+}

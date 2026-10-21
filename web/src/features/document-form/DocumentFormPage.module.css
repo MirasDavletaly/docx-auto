@@ -1,0 +1,280 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-600);
+  font-size: var(--text-sm);
+}
+
+.backLink:hover {
+  border-color: var(--ink-300);
+  color: var(--ink-900);
+  text-decoration: none;
+}
+
+/* ── Две половины: поля и лист ────────────────────────────────────────── */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(340px, 38%) 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Левая половина ───────────────────────────────────────────────────── */
+
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+}
+
+.formBody {
+  flex: 1;
+  padding: var(--space-8) var(--space-8) var(--space-9);
+  overflow-y: auto;
+}
+
+.group {
+  margin: 0 0 var(--space-9);
+  padding: 0;
+  border: none;
+}
+
+.group:last-child {
+  margin-bottom: 0;
+}
+
+/*
+  Заголовок группы полей — та же капитель с разрядкой, что и на штампах:
+  группы в форме повторяют разделы бумажного бланка.
+*/
+.groupTitle {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-6);
+  padding: 0 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+.groupFields {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* ── Проверка ─────────────────────────────────────────────────────────── */
+
+.validation {
+  margin-bottom: var(--space-8);
+  padding: var(--space-5) var(--space-6);
+  background: var(--state-rejected-soft);
+  border-left: 2px solid var(--state-rejected);
+}
+
+.validationTitle {
+  font-weight: 600;
+  color: var(--state-rejected);
+}
+
+.validationBody {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+}
+
+/* ── Подвал формы ─────────────────────────────────────────────────────── */
+
+.formFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-8);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--line);
+}
+
+.progress {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.progressText {
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+.progressTrack {
+  display: block;
+  width: 120px;
+  height: 2px;
+  background: var(--ink-100);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 160ms ease;
+}
+
+.save {
+  flex: none;
+  height: 40px;
+  padding: 0 var(--space-8);
+  background: var(--accent);
+  color: var(--accent-on);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background 120ms ease;
+}
+
+.save:hover {
+  background: var(--accent-hover);
+}
+
+.save:active {
+  background: var(--accent-active);
+}
+
+.save:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* Сервер не принял «Сохранить»: причина – рядом с кнопкой. */
+.saveProblem {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+}
+
+/* ── Правая половина: лист ────────────────────────────────────────────── */
+
+.sheetColumn {
+  min-width: 0;
+  padding: var(--space-8) var(--space-9) var(--space-11);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.legalNotice {
+  max-width: 210mm;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  background: var(--state-draft-soft);
+  border-left: 2px solid var(--state-draft);
+}
+
+.legalTitle {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--state-draft);
+}
+
+.legalBody {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+}
+
+/* ── Не найдено ───────────────────────────────────────────────────────── */
+
+.missing {
+  display: grid;
+  gap: var(--space-5);
+  justify-items: start;
+  padding: var(--space-10) var(--space-9);
+}
+
+/* ── Узкий экран ──────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .formColumn {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .formBody {
+    padding: var(--space-7) var(--space-6);
+  }
+
+  .formFooter {
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .sheetColumn {
+    padding: var(--space-7) var(--space-6) var(--space-10);
+  }
+}
+
+/* Правим существующую запись, а не заводим новую: это нужно сказать сразу,
+   иначе человек решит, что создаёт копию. */
+.editingNote {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+/* Обещание, что работа не пропадёт. Стоит внизу формы, рядом с кнопкой. */
+.autosave {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-400);
+}
+
+.autosaveTitle {
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+/* Сколько языков в документе. Три колонки – обычный бланк компании; одна
+   колонка – временное состояние, пока нет проверенного перевода. */
+.langsNote {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-500);
+}
+
+.langsTitle {
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+.langsWarn {
+  padding: var(--space-5);
+  background: var(--state-draft-soft);
+  border-left: 2px solid var(--state-draft);
+}

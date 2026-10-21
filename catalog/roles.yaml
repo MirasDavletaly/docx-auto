@@ -1,0 +1,179 @@
+# Системные роли и их права.
+#
+# Роль — это набор прав, а не константа в коде (CLAUDE.md, п. 3.2). Загружается
+# процессом seed. Админ компании собирает свои роли в конструкторе из тех же
+# кирпичей: раздел × профиль × действие.
+#
+# Право записывается как <раздел>.<профиль>.<действие>. Звёздочка означает «все»:
+#   hr.*.view      — видеть все профили раздела «Кадры»
+#   *.standard.*   — всё с обычными документами во всех разделах
+#
+# Разделы берутся из sections.yaml, профили — из profiles.yaml.
+#
+# Источник: docs/architecture.md, п. 4.
+
+version: 1
+
+actions:
+  - id: create
+    title: { ru: Создавать }
+  - id: view
+    title: { ru: Просматривать }
+  - id: edit
+    title: { ru: Изменять черновик }
+  - id: submit
+    title: { ru: Отправлять на согласование }
+  - id: visa
+    title: { ru: Визировать }
+  - id: approve
+    title: { ru: Утверждать }
+  - id: sign
+    title: { ru: Подписывать }
+  - id: archive
+    title: { ru: Сдавать в архив }
+  - id: cancel
+    title: { ru: Отменять }
+  - id: export
+    title: { ru: Выгружать }
+  - id: manage_templates
+    title: { ru: Править шаблоны }
+
+roles:
+  # ВНИМАНИЕ. Раньше эта роль документов не видела: администрирование и доступ
+  # к содержимому были разделены намеренно (docs/architecture.md, п. 4). Правило
+  # снято по прямому решению владельца системы 2026-09-22 — ему нужно видеть и
+  # исправлять документы всех компаний. Разбор и последствия:
+  # docs/questions.md, «Права администратора платформы».
+  - id: platform-admin
+    scope: platform
+    title: { ru: Администратор платформы }
+    description:
+      ru: >-
+        Заводит компании, людей и учётные записи. Видит и исправляет документы
+        всех компаний, ведёт журнал действий.
+    permissions:
+      - "*.*.create"
+      - "*.*.view"
+      - "*.*.edit"
+      - "*.*.cancel"
+      - "*.*.archive"
+      - "*.*.export"
+      - "*.*.manage_templates"
+
+  # Администратор компании документов по-прежнему не видит: у него нет причины
+  # читать приказы, и разделение здесь сохраняется.
+
+  - id: company-admin
+    scope: company
+    title: { ru: Администратор компании }
+    description:
+      ru: >-
+        Пользователи, роли, брендинг и шаблоны своей компании.
+        Документы не видит и не может выдать себе право их видеть.
+    permissions:
+      - "*.*.manage_templates"
+
+  - id: director
+    scope: company
+    title: { ru: Директор }
+    description:
+      ru: >-
+        Всё, что может работник, плюс управление своей компанией: люди,
+        реквизиты и все её документы, включая исправление чужих ошибок.
+        Документ о самом себе утвердить не может.
+    permissions:
+      - "*.*.create"
+      - "*.*.view"
+      - "*.*.edit"
+      # approve остаётся: интерфейс согласование и утверждение больше не
+      # показывает (решение владельца 2026-09-22), но жизненный цикл
+      # docs/roadmap.md, этап 4 его ещё содержит. Расхождение вынесено
+      # в docs/questions.md и должно быть решено до этапа 4.
+      - "*.*.approve"
+      - "*.*.sign"
+      - "*.*.cancel"
+      - "*.*.export"
+
+  - id: employee
+    scope: company
+    title: { ru: Работник }
+    description:
+      ru: Свои документы, заявления о себе и ознакомление с локальными актами.
+    permissions:
+      - "*.self-service.create"
+      - "*.self-service.view"
+      - "*.self-service.submit"
+      - "*.policy.view"
+
+  - id: unit-head
+    scope: company
+    title: { ru: Руководитель подразделения }
+    description:
+      ru: Согласует заявки подчинённых и видит документы своего отдела, кроме узкого круга.
+    permissions:
+      - "*.self-service.view"
+      - "*.self-service.visa"
+      - "*.standard.view"
+      - "*.policy.view"
+
+  - id: chief-accountant
+    scope: company
+    title: { ru: Главный бухгалтер }
+    description:
+      ru: Руководитель раздела «Финансы» и вторая подпись на финансовых документах.
+    permissions:
+      - "finance.*.create"
+      - "finance.*.view"
+      - "finance.*.edit"
+      - "finance.*.submit"
+      - "finance.*.visa"
+      - "finance.*.sign"
+      - "finance.*.export"
+      - "finance.*.manage_templates"
+
+  - id: auditor
+    scope: company
+    optional: true
+    title: { ru: Аудитор }
+    description:
+      ru: Только чтение утверждённых документов. Ничего не создаёт и не меняет.
+    permissions:
+      - "*.standard.view"
+      - "*.policy.view"
+      - "*.register.view"
+      - "*.register.export"
+
+# Руководитель и специалист раздела заводятся по одному шаблону на каждый из
+# 11 разделов: подставляется id раздела из sections.yaml.
+role_templates:
+  - id: "{section}-head"
+    scope: company
+    for_each: section
+    title: { ru: "Руководитель раздела «{section_title}»" }
+    description:
+      ru: Всё в своём разделе, включая узкий круг; визирует и правит шаблоны раздела.
+    permissions:
+      - "{section}.*.create"
+      - "{section}.*.view"
+      - "{section}.*.edit"
+      - "{section}.*.submit"
+      - "{section}.*.visa"
+      - "{section}.*.archive"
+      - "{section}.*.export"
+      - "{section}.*.manage_templates"
+
+  - id: "{section}-specialist"
+    scope: company
+    for_each: section
+    title: { ru: "Специалист раздела «{section_title}»" }
+    description:
+      ru: >-
+        Создаёт и ведёт обычные документы своего раздела. Документы узкого круга
+        доступны только при отдельно выданном праве {section}.sensitive.view.
+    permissions:
+      - "{section}.standard.create"
+      - "{section}.standard.view"
+      - "{section}.standard.edit"
+      - "{section}.standard.submit"
+      - "{section}.policy.view"
+      - "{section}.register.view"

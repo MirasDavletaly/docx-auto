@@ -1,0 +1,119 @@
+/* Основа: сброс и общие правила. Всё остальное — в CSS-модулях компонентов. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink-900);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Фокус виден всегда и одинаково: по системе ходят клавиатурой не меньше,
+   чем мышью — кадровик заполняет форму, не снимая рук с клавиатуры. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Цифры в таблицах и в документе выравниваются в столбик. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Полоса прокрутки под цвет стола: иначе светлая системная полоса
+   разрезает тёмную боковую панель. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-200) transparent;
+}
+
+/*
+  Обёртка, которая меняется вместе с языком (см. app/App.tsx). Из потока
+  она убрана: иначе лишний блок разорвал бы цепочку высот между корнем
+  страницы и оболочкой рабочих экранов.
+*/
+.languageRoot {
+  display: contents;
+}
+
+/*
+  Страховка от длинной строки без пробелов.
+
+  Человек может вписать в поле что угодно, в том числе двести знаков подряд
+  без единого пробела. Такая строка не переносится сама и выталкивает
+  соседей за край – это видели на листе документа.
+
+  `break-word` разрывает слово только тогда, когда оно иначе не помещается,
+  и не меняет естественную ширину блоков. Лист документа строже: там стоит
+  `anywhere`, потому что за поля страницы не должно выходить ничего.
+*/
+body {
+  overflow-wrap: break-word;
+}
+
+/* Сайт открыт без HTTPS (App.tsx): одно сообщение по центру, без оболочки. */
+.insecure {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 640px;
+  margin: 15vh auto 0;
+  padding: 0 var(--space-6);
+  line-height: var(--leading-normal);
+}

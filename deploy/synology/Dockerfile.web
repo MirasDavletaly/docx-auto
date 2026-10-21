@@ -1,0 +1,14 @@
+# Сайт DocFlow на Synology: готовая сборка и Caddy (docs/deploy-synology.md).
+#
+# Сайт собран и проверен на компьютере разработчика
+# (scripts/deploy/pack-synology.ps1) и лежит в пакете папкой site/.
+# Та же версия Caddy, что в deploy/Dockerfile.
+FROM caddy:2.11-alpine
+
+COPY deploy/synology/Caddyfile /etc/caddy/Caddyfile
+COPY deploy/synology/web-start.sh /usr/local/bin/web-start.sh
+COPY site /srv
+
+# Через sh, а не напрямую: признак «исполняемый» в архиве, собранном на
+# Windows, не сохраняется.
+CMD ["sh", "/usr/local/bin/web-start.sh"]

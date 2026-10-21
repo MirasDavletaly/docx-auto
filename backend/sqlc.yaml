@@ -1,0 +1,15 @@
+# sqlc: код запросов к базе генерируется из SQL (CLAUDE.md, п. 3.3, 4.11).
+# Сгенерированное руками не правится; после правки запросов – make gen
+# (сейчас: ..\bin\sqlc.exe generate из папки backend).
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: queries
+    gen:
+      go:
+        package: repository
+        out: internal/repository
+        sql_package: pgx/v5
+        emit_json_tags: false
+        emit_empty_slices: true

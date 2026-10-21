@@ -1,0 +1,185 @@
+# Веб-сервер DocFlow на Synology (docs/deploy-synology.md,
+# docs/adr/0004-synology.md).
+#
+# HTTPS держит сам Caddy: сертификат Let's Encrypt на имя synology.me он
+# получает и продлевает сам. DSM 6.2 без обновлений безопасности с 2024
+# года, поэтому её веб-сервер наружу не открывается вовсе: роутер передаёт
+# внешний порт 443 на порт 8443 NAS, а Docker – сюда, на 443 контейнера.
+#
+# Между интернетом и Caddy прокси нет: адрес клиента – адрес соединения.
+# Заголовкам X-Real-IP и X-Forwarded-For от клиента здесь не верят – по
+# адресу сервер API ограничивает частоту входа.
+#
+# Значения – из переменных окружения (docker-compose.yml, .env):
+#   DOCFLOW_SITE_NAME   имя сайта: docflow.synology.me
+#   DOCFLOW_AUTH_USER   логин пароля на сайт (docflow)
+#   DOCFLOW_AUTH_HASH   хеш пароля на сайт – считает web-start.sh из
+#                       DOCFLOW_SITE_PASSWORD при запуске
+#   DOCFLOW_GATE_TOKEN  ключ пропуска после пароля на сайт (64 знака hex)
+#   DOCFLOW_SITE_AUTH   on (по умолчанию) – пароль на сайт; off – без него,
+#                       только вход в DocFlow
+#   DOCFLOW_TLS         acme (по умолчанию) – сертификат Let's Encrypt, порт
+#                       443 проброшен на роутере; off – HTTPS держит
+#                       посредник (Tailscale Funnel), Caddy отдаёт сайт по
+#                       http только на 127.0.0.1 NAS (docker-compose.yml)
+#   DOCFLOW_SITE_ADDR, DOCFLOW_TRUSTED_PROXIES – выставляет web-start.sh
+#                       по DOCFLOW_TLS
+# Только для проверки на компьютере разработчика:
+#   DOCFLOW_TLS=internal – свой сертификат Caddy вместо Let's Encrypt;
+#   DOCFLOW_HTTP_PORT, DOCFLOW_HTTPS_PORT, DOCFLOW_SITE_ROOT,
+#   DOCFLOW_API_UPSTREAM.
+{
+	# Управляющий интерфейс не нужен: настройки меняются пересборкой.
+	admin off
+	# Свой корневой сертификат (DOCFLOW_TLS=internal) в систему не ставить:
+	# при проверке на компьютере разработчика Caddy иначе добавил бы его в
+	# доверенные Windows.
+	skip_install_trust
+
+	http_port {$DOCFLOW_HTTP_PORT:80}
+	https_port {$DOCFLOW_HTTPS_PORT:443}
+
+	servers {
+		# Без HTTP/3: он идёт по UDP, а роутер пробрасывает только TCP 443.
+		# Иначе браузеры пытались бы зря.
+		protocols h1 h2
+
+		# Режим off: перед Caddy – посредник (Tailscale Funnel), и адрес
+		# посетителя – в его X-Forwarded-For; берётся крайний правый, не
+		# из доверенных: подставить чужой адрес слева посетитель не может.
+		# Режим acme: доверенных нет (127.0.0.1 – только сам контейнер),
+		# адрес – адрес соединения.
+		trusted_proxies static {$DOCFLOW_TRUSTED_PROXIES:127.0.0.1/32}
+		trusted_proxies_strict
+
+		# Сроки на каждое соединение: медленный клиент не держит сервер вечно.
+		timeouts {
+			read_header 10s
+			read_body 10s
+			write 60s
+			idle 2m
+		}
+	}
+}
+
+# Сертификат Let's Encrypt. Проверка – TLS-ALPN на том же порту 443;
+# проверка по HTTP выключена: порт 80 наружу не открыт, и неудачные
+# попытки только тратили бы лимит Let's Encrypt.
+(tls_acme) {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+}
+
+# Только для проверки на компьютере разработчика (DOCFLOW_TLS=internal).
+(tls_internal) {
+	tls internal
+}
+
+# HTTPS у посредника (DOCFLOW_TLS=off): у Caddy сертификата нет.
+(tls_off) {
+}
+
+# Пароль на сайт и пропуск после него (route ниже).
+(site_auth_on) {
+	basic_auth @needauth {
+		{$DOCFLOW_AUTH_USER} {$DOCFLOW_AUTH_HASH}
+	}
+	header @needauth Set-Cookie "docflow_gate={$DOCFLOW_GATE_TOKEN}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax"
+}
+
+# Без пароля на сайт: код сайта (в нём реквизиты компаний) скачает любой,
+# кто знает адрес; данные из базы – только после входа в DocFlow.
+(site_auth_off) {
+}
+
+# Адрес – имя сайта (acme, internal) или http://:80 (off): web-start.sh.
+{$DOCFLOW_SITE_ADDR} {
+	import tls_{$DOCFLOW_TLS:acme}
+
+	# Журнал запросов – в журнал контейнера (docker compose logs web).
+	# Заголовки Authorization и Cookie Caddy пишет как REDACTED: ни пароль
+	# на сайт, ни токены входа в журнал не попадают.
+	log {
+		format json
+	}
+
+	encode zstd gzip
+
+	# Заголовки безопасности – как в deploy/Caddyfile, на всех ответах,
+	# включая 401 (запрос пароля). Совпадение политики содержимого с сайтом
+	# проверяет тест web/src/security/csp.test.ts.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	}
+	# Версию сервера не называем (почему отдельно – deploy/Caddyfile).
+	header -Server
+
+	root * "{$DOCFLOW_SITE_ROOT:/srv}"
+
+	# Пароль на весь сайт, до входа в само приложение. В коде сайта лежат
+	# реквизиты компаний (БИН, счета) – без него их скачал бы любой, кто
+	# знает адрес. /api/* – без него: у сервера API свой вход по токену в
+	# том же заголовке Authorization.
+	#
+	# После верного пароля браузер получает пропуск – cookie docflow_gate
+	# со случайным ключом из .env (DOCFLOW_GATE_TOKEN), и дальше пароль не
+	# нужен. Без пропуска сайт не работал бы: браузер сам подставляет
+	# запомненный пароль сайта и в запросы к /api, а получив оттуда 401
+	# («нужно войти», «неверный логин или пароль»), решает, что пароль сайта
+	# неверный, забывает его и спрашивает снова на следующем же файле.
+	#
+	# Пустой DOCFLOW_GATE_TOKEN открыл бы сайт cookie «docflow_gate=»:
+	# web-start.sh без ключа из 64 знаков hex Caddy не запускает.
+	@needauth {
+		not path /api/*
+		not header_regexp Cookie (?:^|;\s*)docflow_gate={$DOCFLOW_GATE_TOKEN}(?:;|$)
+	}
+
+	# Всё – в одном route: порядок ниже – ровно порядок исполнения. Пропуск
+	# выдаётся только после того, как basic_auth принял пароль; не принял –
+	# дальше запрос не идёт.
+	route {
+		# DOCFLOW_SITE_AUTH=off – без пароля на сайт (решение человека
+		# 15.10): остаётся только вход в DocFlow.
+		import site_auth_{$DOCFLOW_SITE_AUTH:on}
+
+		# Сервер API. Ему передаётся один адрес – клиента, определённый выше;
+		# сервер берёт последний адрес X-Forwarded-For (HTTP_TRUST_PROXY).
+		handle /api/* {
+			reverse_proxy {$DOCFLOW_API_UPSTREAM:api:8080} {
+				header_up X-Forwarded-For {client_ip}
+				# Браузер всегда на https – и у Caddy, и у посредника.
+				header_up X-Forwarded-Proto https
+			}
+		}
+
+		# Файлы сборки с хешем в имени не меняются – кешируются надолго.
+		# Несуществующий файл – честный 404, а не index.html.
+		handle /assets/* {
+			@exists file
+			header @exists Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+
+		# Адреса страниц сайта – один index.html, всегда свежий.
+		handle {
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
+	}
+
+	handle_errors {
+		header -Server
+	}
+}

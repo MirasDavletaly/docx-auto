@@ -1,0 +1,254 @@
+.page {
+  min-height: 100vh;
+}
+
+.body {
+  padding: var(--space-8) var(--space-9) var(--space-11);
+}
+
+.search {
+  width: 320px;
+  height: 36px;
+  padding: 0 var(--space-5);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.count {
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+/* На узком экране реестр прокручивается вбок целиком, а не ломает столбцы:
+   в журнале регистрации важно видеть строку целиком. */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.table thead th {
+  padding: 0;
+  text-align: left;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-raised);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Заголовок без сортировки — обычный текст, чтобы не обещать нажатие. */
+.table thead th.colTitle,
+.table thead th.colDescription {
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+.sortButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  background: none;
+  border: none;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-200);
+  text-underline-offset: 3px;
+  transition: color 120ms ease;
+}
+
+.sortButton:hover {
+  color: var(--ink-900);
+  text-decoration-color: var(--ink-400);
+}
+
+.sortButtonActive {
+  color: var(--accent);
+  text-decoration-color: var(--accent-line);
+}
+
+.sortMark {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--ink-200);
+}
+
+.sortButtonActive .sortMark {
+  color: var(--accent);
+}
+
+.table tbody td {
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: var(--accent-soft);
+}
+
+/* ── Столбцы ──────────────────────────────────────────────────────────── */
+
+.colNumber {
+  width: 130px;
+  white-space: nowrap;
+}
+
+.number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* «б/н» — принятое в делопроизводстве обозначение документа без номера.
+   Оно честнее прочерка: документ существует, номер ему ещё не присвоен. */
+.noNumber {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-300);
+}
+
+.colTitle {
+  min-width: 220px;
+}
+
+.colDescription {
+  min-width: 220px;
+  max-width: 360px;
+}
+
+.description {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-500);
+  font-size: var(--text-sm);
+}
+
+.colStatus {
+  width: 160px;
+}
+
+.colAuthor {
+  width: 170px;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.colDate {
+  width: 120px;
+  white-space: nowrap;
+  color: var(--ink-500);
+  font-size: var(--text-sm);
+}
+
+.link {
+  color: var(--ink-900);
+}
+
+.link:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.muted {
+  color: var(--ink-200);
+}
+
+/* ── Пусто ────────────────────────────────────────────────────────────── */
+
+.empty {
+  display: grid;
+  gap: var(--space-6);
+  justify-items: start;
+  max-width: 44ch;
+  padding: var(--space-9) 0;
+}
+
+.emptyBody {
+  color: var(--ink-500);
+}
+
+.emptyAction {
+  padding: var(--space-4) var(--space-7);
+  background: var(--accent);
+  color: var(--accent-on);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.emptyAction:hover {
+  background: var(--accent-hover);
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .body {
+    padding: var(--space-7) var(--space-6) var(--space-10);
+  }
+}
+
+/* «Для кого» — по этому столбцу документ ищут глазами чаще всего:
+   сначала «чей приказ», потом всё остальное. */
+.colSubject {
+  width: 20%;
+  min-width: 140px;
+}
+
+.colActions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.delete {
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* Кнопка удаления не мозолит глаза: она появляется, когда строка под
+   курсором или в фокусе клавиатуры. Реестр читают, а не чистят. */
+tr:hover .delete,
+.delete:focus-visible {
+  opacity: 1;
+}
+
+.delete:hover {
+  text-decoration: underline;
+}

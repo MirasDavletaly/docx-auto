@@ -1,0 +1,25 @@
+.frame {
+  width: 100%;
+}
+
+/* Распорка держит место, которое занимает уменьшенный лист: transform
+   не влияет на поток, и без неё страница «схлопнулась» бы под листом. */
+.spacer {
+  position: relative;
+  width: 100%;
+}
+
+.inner {
+  transform-origin: top left;
+  width: max-content;
+}
+
+@media print {
+  .spacer {
+    height: auto !important;
+  }
+
+  .inner {
+    transform: none !important;
+  }
+}

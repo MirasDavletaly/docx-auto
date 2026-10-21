@@ -1,0 +1,75 @@
+# Набор линтеров подобран под неприкосновенные правила из CLAUDE.md:
+# каждый включённый линтер ловит ошибку, которую иначе пришлось бы искать
+# по журналу боевой системы.
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    # Ошибки не теряются и сравниваются правильно: доменные ошибки заворачиваются
+    # через %w и распознаются errors.Is, иначе перевод в коды HTTP сломается.
+    - errorlint
+    - nilerr
+    - err113
+
+    # Ввод-вывод без контекста — это запрос без таймаута (CLAUDE.md, п. 3.11).
+    - noctx
+    - contextcheck
+
+    # Незакрытые тела ответов и строки выборки — утечка соединений.
+    - bodyclose
+    - sqlclosecheck
+    - rowserrcheck
+
+    # Безопасность: слабая случайность, конкатенация SQL, небезопасные операции.
+    - gosec
+
+    # Читаемость и лишняя работа.
+    - revive
+    - unconvert
+    - wastedassign
+    - misspell
+    - copyloopvar
+    - prealloc
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+    govet:
+      enable-all: true
+      disable:
+        # Выравнивание полей структур ради экономии байтов ухудшает читаемость.
+        - fieldalignment
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        # G104 дублирует errcheck.
+        - G104
+
+  exclusions:
+    rules:
+      # В тестах допустимы простые ошибки через errors.New и менее строгая
+      # проверка безопасности: боевого кода это не касается.
+      - path: _test\.go
+        linters:
+          - err113
+          - gosec
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - docflow

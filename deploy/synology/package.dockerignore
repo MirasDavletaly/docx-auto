@@ -1,0 +1,10 @@
+# В пакете для Synology этот файл лежит в корне под именем .dockerignore
+# (scripts/deploy/pack-synology.ps1). Контекст сборки образов – корень
+# пакета, а в образы идут только готовый сайт, бинарники, Caddyfile и
+# скрипт запуска Caddy. Остальное – настройки с паролями (.env), копии базы
+# (import/) – в контекст не уходит.
+*
+!site
+!bin
+!deploy/synology/Caddyfile
+!deploy/synology/web-start.sh

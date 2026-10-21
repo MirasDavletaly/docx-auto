@@ -1,0 +1,359 @@
+.page {
+  min-height: 100vh;
+}
+
+.body {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-9) var(--space-11);
+}
+
+/* ── Панель над списком: откуда документ и поиск ──────────────────────── */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.toolbarEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: var(--space-2) var(--space-5);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-600);
+  font-size: var(--text-sm);
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.chip:hover {
+  border-color: var(--ink-300);
+  color: var(--ink-900);
+}
+
+/* Выбранный – белым по тёмному и под курсором тоже, как в каталоге. */
+.chipActive,
+.chipActive:hover {
+  background: var(--ink-700);
+  border-color: var(--ink-700);
+  color: #fff;
+}
+
+.search {
+  width: 300px;
+  height: 36px;
+  padding: 0 var(--space-5);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── Журнал ───────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th {
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.number {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.link {
+  color: var(--ink-900);
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.sub {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--ink-400);
+  overflow-wrap: anywhere;
+}
+
+.source {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-500);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.sourcePdf {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.action {
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.action:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* Пока собирается PDF другого документа, кнопки «Скачать PDF» ждут. */
+.action:disabled {
+  color: var(--ink-400);
+  cursor: default;
+}
+
+.danger {
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.danger:hover {
+  text-decoration: underline;
+}
+
+/* ── Загрузка ─────────────────────────────────────────────────────────── */
+
+.form {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.formTitle {
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-500);
+  max-width: 72ch;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-600);
+}
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-3) var(--space-4);
+  font: inherit;
+  color: var(--ink-900);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.primary {
+  padding: var(--space-4) var(--space-6);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-on);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.primary:hover {
+  background: var(--accent-hover);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.secondary {
+  padding: var(--space-3) var(--space-5);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ok {
+  font-size: var(--text-sm);
+  color: var(--state-approved);
+}
+
+.error {
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+  background: var(--state-rejected-soft);
+  border-left: 2px solid var(--state-rejected);
+}
+
+.muted {
+  color: var(--ink-500);
+}
+
+@media (max-width: 900px) {
+  .body {
+    padding: var(--space-6) var(--space-6) var(--space-9);
+  }
+
+  .search {
+    width: 100%;
+  }
+}
+
+/* Лист для «Скачать PDF» из архива: собирается вне экрана в настоящем
+   размере A4 и снимается в файл (OffscreenPdf.tsx). */
+.offscreen {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 210mm;
+  pointer-events: none;
+}
+
+/* Сортировка по колонке (02.10): заголовок – кнопка, вид – как у заголовка. */
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sortButton:hover {
+  color: var(--ink-900);
+}
+
+.sortButtonActive {
+  color: var(--accent);
+}
+
+.sortMark {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--ink-200);
+}
+
+.sortButtonActive .sortMark {
+  color: var(--accent);
+}

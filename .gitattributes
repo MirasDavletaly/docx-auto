@@ -1,0 +1,16 @@
+# Единый перевод строки в репозитории: иначе скрипты и Dockerfile ломаются в контейнерах Linux.
+* text=auto eol=lf
+
+*.sh      text eol=lf
+Makefile  text eol=lf
+
+# Бинарные файлы — без нормализации и без diff.
+*.docx binary
+*.dotx binary
+*.xlsx binary
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.ttf  binary
+*.woff2 binary

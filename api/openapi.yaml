@@ -1,0 +1,961 @@
+openapi: 3.1.0
+info:
+  title: DocFlow API
+  version: 0.1.0
+  description: |
+    Этап 1а: вход, учётные записи, компании, перенос из браузера
+    (docs/plans/phase-01a-users-db.md). Этап 1б: персонал компании – её
+    пользователи (docs/plans/phase-01b-personnel.md).
+
+    Контракт пока ведётся вручную; генерация типов Go и TypeScript из него –
+    шаг 0.7 этапа 0 (TODO(phase-00): make gen).
+
+    Общее:
+    - Access-токен – в заголовке `Authorization: Bearer`, живёт 10 минут.
+      Refresh – в cookie `docflow_refresh` (HttpOnly, Secure, SameSite=Strict,
+      путь `/api/auth`).
+    - Компания запроса – только из токена; в теле и адресе её нет.
+    - Чужая или несуществующая запись – 404.
+    - Тело JSON ≤ 1 МБ, лишние поля – 400.
+    - Создающие POST принимают `Idempotency-Key`: повтор получает сохранённый
+      ответ (заголовок `Idempotent-Replayed: true`).
+    - Ошибка: `{"error": {"code", "message", "request_id", "fields"}}`.
+
+servers:
+  - url: /api
+
+security:
+  - bearer: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Вход по логину и паролю
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [login, password]
+              properties:
+                login: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Вошёл. Refresh – в cookie.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /auth/refresh:
+    post:
+      summary: Новый access-токен по refresh-cookie (refresh меняется)
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                companyId:
+                  type: string
+                  description: Компания для нового токена, если к ней есть доступ.
+      responses:
+        "200":
+          description: Новая пара токенов
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /auth/logout:
+    post:
+      summary: Выход – цепочка refresh отзывается
+      security: []
+      responses:
+        "204": { description: Вышел }
+
+  /auth/company:
+    post:
+      summary: Выбрать компанию – новый access-токен с ней
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [companyId]
+              properties:
+                companyId: { type: string }
+      responses:
+        "200":
+          description: Токен для компании (refresh не меняется)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /auth/confirm:
+    post:
+      summary: Пароль ещё раз перед входом в админ-панель
+      description: Неверный пароль считается неудачной попыткой входа (блокировка после 5).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "204": { description: Пароль верный }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /me:
+    get:
+      summary: Кто вошёл
+      responses:
+        "200":
+          description: Учётная запись, права, компания
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+    patch:
+      summary: Своё имя и профиль
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/Profile"
+                - type: object
+                  required: [displayName, lockVersion]
+                  properties:
+                    displayName: { type: string, maxLength: 200 }
+                    lockVersion: { type: integer }
+                    login:
+                      type: string
+                      minLength: 3
+                      maxLength: 64
+                      description: |
+                        Свой новый логин; пусто или тот же – не менять. Только с правом
+                        users.login, иначе 403; занятый – 422 по полю login.
+      responses:
+        "200":
+          description: Обновлено
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /me/password:
+    post:
+      summary: Сменить свой пароль – прежние сессии закрываются
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 6, maxLength: 256 }
+      responses:
+        "200":
+          description: Новая сессия (и новая refresh-cookie)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /users:
+    get:
+      summary: Учётные записи
+      description: |
+        Кто управляет людьми (`people.manage`) – люди текущей компании;
+        администратор платформы – все; остальные – только себя.
+      responses:
+        "200":
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+    post:
+      summary: Завести учётную запись
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/UserInput"
+                - type: object
+                  required: [login, password]
+                  properties:
+                    login: { type: string, minLength: 3, maxLength: 64 }
+                    password: { type: string, minLength: 6, maxLength: 256 }
+      responses:
+        "201":
+          description: Заведена
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      summary: Править учётную запись (целиком, с lockVersion)
+      description: |
+        Директор меняет доступ только к своим компаниям; доступ к другим
+        компаниям остаётся как был. Смена роли и блокировка закрывают все
+        сессии человека.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/UserInput"
+                - type: object
+                  required: [lockVersion]
+                  properties:
+                    lockVersion: { type: integer }
+                    login:
+                      type: string
+                      minLength: 3
+                      maxLength: 64
+                      description: |
+                        Новый логин; пусто или тот же – не менять. Меняет только тот, у
+                        кого право users.login (администратор платформы, 16.10), иначе
+                        403. Занятый в любом регистре – 422 по полю login.
+      responses:
+        "200":
+          description: Обновлена
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Удалить учётную запись (пометкой)
+      parameters:
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Удалена }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /users/{id}/password:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Задать пароль человеку (сессии закрываются, блокировка входа снимается)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string, minLength: 6, maxLength: 256 }
+      responses:
+        "204": { description: Задан }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /personnel:
+    get:
+      summary: Персонал текущей компании
+      description: |
+        Люди компании из токена – её пользователи с карточкой; видят все
+        люди компании (выбор работника в документе). Администратору
+        платформы – все компании. Логина, телефона и почты в карточке нет.
+      responses:
+        "200":
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Person" }
+    post:
+      summary: Завести человека в персонале текущей компании
+      description: |
+        Учётная запись работника с карточкой. Пароль необязателен: без него
+        войти нельзя, пока его не зададут. Нужно `people.manage` в компании.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/PersonCard"
+                - type: object
+                  required: [login]
+                  properties:
+                    login: { type: string, minLength: 3, maxLength: 64 }
+                    password: { type: string, minLength: 6, maxLength: 256 }
+      responses:
+        "201":
+          description: Заведён
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /personnel/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      summary: Править карточку (с lockVersion)
+      description: |
+        Имя и его формы – общие для всех компаний человека; должность и
+        подразделение – только в текущей. Не этой компании – 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/PersonCard"
+                - type: object
+                  required: [lockVersion]
+                  properties:
+                    lockVersion: { type: integer }
+      responses:
+        "200":
+          description: Обновлена
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Убрать из персонала текущей компании
+      description: |
+        Снимает доступ к компании (права – как на правку доступа). Других
+        компаний у человека нет – учётная запись удаляется пометкой.
+      parameters:
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Убран }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /companies:
+    get:
+      summary: Компании, к которым есть доступ
+      responses:
+        "200":
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Company" }
+    post:
+      summary: Завести компанию (администратор платформы)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Company" }
+      responses:
+        "201":
+          description: Заведена
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /companies/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      summary: Править реквизиты (целиком, с lockVersion)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Company" }
+      responses:
+        "200":
+          description: Обновлена
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+    delete:
+      summary: Удалить компанию (пометкой; администратор платформы)
+      parameters:
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Удалена }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /admin/import:
+    post:
+      summary: Перенести компании и учётные записи из браузера
+      description: |
+        Разово: только администратор платформы и только пока на сервере нет
+        компаний. Всё в одной транзакции. Пароли не переносятся – задаются
+        заново. Логины, которые уже есть, пропускаются. Изображения (логотип,
+        фотография) сайт досылает отдельными правками: тело ≤ 1 МБ.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [companies, users]
+              properties:
+                companies:
+                  type: array
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/Company" }
+                users:
+                  type: array
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/ImportUser" }
+      responses:
+        "200":
+          description: Перенесено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  companies: { type: integer }
+                  users: { type: integer }
+                  skipped: { type: array, items: { type: string } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+
+  # ── Документы, шаблоны компании, архив (docs/plans/phase-01c-documents.md) ──
+
+  /documents:
+    get:
+      summary: Видимые документы всех доступных компаний, страницами
+      description: |
+        Удалённые – тому, кто может вернуть. Фильтр видимости – в SQL, те же
+        правила, что internal/access. В ответе – картинки снимков страницы.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+      responses:
+        "200":
+          description: Страница
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, images]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Document" } }
+                  images: { type: object, additionalProperties: { type: string } }
+                  next: { type: string }
+  /documents/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9_-]{3,80}$" } }
+    put:
+      summary: Создать (lockVersion 0) в компании токена или исправить
+      description: |
+        Идентификатор заводит сайт; повтор того же запроса не удваивает.
+        Чужой или занятый идентификатор – 404. Номер сохранённого документа
+        уникален в компании – 422 по полю number.
+        Снимок реквизитов сохранённого документа сервер собирает из карточки
+        компании; из присланного берутся только `lockVersion` карточки и
+        логотип. Карточку с тех пор правили или версии нет – 409
+        `company_changed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentInput" }
+      responses:
+        "200":
+          description: Записан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: В корзину
+      parameters:
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Удалён }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /documents/{id}/restore:
+    post:
+      summary: Вернуть из корзины
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Возвращён }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /documents/{id}/purge:
+    post:
+      summary: Стереть навсегда (только из корзины)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Стёрт }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /documents/{id}/grants/{userId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: userId, in: path, required: true, schema: { type: string } }
+    put:
+      summary: Выдать доступ человеку компании документа
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [level]
+              properties:
+                level: { type: string, enum: [view, edit] }
+      responses:
+        "200":
+          description: Выдан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Снять доступ
+      responses:
+        "200":
+          description: Снят
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/Error" }
+  /images:
+    put:
+      summary: Картинка снимка (логотип) в текущую компанию
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { type: string, description: "data:image/(png|jpeg|gif|webp);base64,… до 1 000 000 знаков" }
+      responses:
+        "200":
+          description: Ссылка на картинку
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ref: { type: string, pattern: "^image:s[0-9a-f]{64}$" }
+        "422": { $ref: "#/components/responses/Error" }
+  /templates:
+    get:
+      summary: Шаблоны конструктора текущей компании в разрешённых разделах
+      responses:
+        "200":
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object, additionalProperties: true } }
+  /templates/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      summary: Создать (lockVersion 0) или исправить шаблон
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template, lockVersion]
+              properties:
+                template: { type: object, additionalProperties: true }
+                lockVersion: { type: integer }
+      responses:
+        "200": { description: Записан }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Убрать из каталога
+      parameters:
+        - { name: lockVersion, in: query, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Убран }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /archive:
+    get:
+      summary: Видимые файлы архива всех доступных компаний, страницами
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+      responses:
+        "200": { description: Страница }
+    post:
+      summary: Начать загрузку PDF в архив текущей компании
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      description: Тот же файл (SHA-256) уже в архиве – 409.
+      responses:
+        "201": { description: "Загрузка заведена: id, parts, partSize" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /archive/{id}/parts/{part}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: part, in: path, required: true, schema: { type: integer, minimum: 0 } }
+    put:
+      summary: Часть файла (до 768 КБ, application/octet-stream)
+      responses:
+        "204": { description: Принята }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    get:
+      summary: Часть готового файла
+      responses:
+        "200": { description: Часть, application/octet-stream }
+        "404": { $ref: "#/components/responses/Error" }
+  /archive/{id}/complete:
+    post:
+      summary: Завершить загрузку – сервер сверяет размер, SHA-256 и PDF
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Файл в архиве }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /archive/{id}:
+    delete:
+      summary: В корзину
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Удалён }
+        "404": { $ref: "#/components/responses/Error" }
+  /archive/{id}/restore:
+    post:
+      summary: Вернуть из корзины
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Возвращён }
+        "404": { $ref: "#/components/responses/Error" }
+  /archive/{id}/purge:
+    post:
+      summary: Стереть навсегда (только из корзины)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Стёрт }
+        "404": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, minLength: 8, maxLength: 200 }
+
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                    enum: [not_found, unauthorized, invalid_credentials, idempotency_mismatch, forbidden, conflict,
+                      company_changed, validation_failed, rate_limited, payload_too_large, bad_request, timeout, canceled, internal_error]
+                  message: { type: string }
+                  request_id: { type: string }
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field: { type: string }
+                        message: { type: string }
+
+  schemas:
+    Document:
+      type: object
+      description: Как DocumentRecord на сайте; значения и снимки – как записал сайт.
+      required: [id, companyId, templateId, sectionId, title, status, number, values, authorId, authorName, createdAt, updatedAt, grants, lockVersion]
+      properties:
+        id: { type: string }
+        companyId: { type: string }
+        templateId: { type: string }
+        sectionId: { type: string }
+        title: { type: string }
+        titleEn: { type: string }
+        description: { type: string }
+        subject: { type: string }
+        status: { type: string, enum: [draft, saved] }
+        number: { type: string, nullable: true }
+        values: { type: object, additionalProperties: { type: string } }
+        companySnapshot: { type: object, additionalProperties: true }
+        peopleSnapshot: { type: object, additionalProperties: true }
+        templateSnapshot: { type: object, additionalProperties: true }
+        authorId: { type: string }
+        authorName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time }
+        deletedBy: { type: string }
+        grants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: string }
+              level: { type: string, enum: [view, edit] }
+              grantedBy: { type: string }
+              grantedAt: { type: string, format: date-time }
+        lockVersion: { type: integer }
+    DocumentInput:
+      type: object
+      additionalProperties: false
+      required: [templateId, sectionId, title, description, subject, status, number, values, lockVersion]
+      properties:
+        templateId: { type: string }
+        sectionId: { type: string }
+        title: { type: string, maxLength: 500 }
+        titleEn: { type: string }
+        description: { type: string, maxLength: 2000 }
+        subject: { type: string, maxLength: 500 }
+        status: { type: string, enum: [draft, saved] }
+        number: { type: string, maxLength: 100 }
+        values: { type: object, additionalProperties: { type: string } }
+        companySnapshot:
+          type: object
+          description: "Обязателен у сохранённого; id – компания документа; logo – image:s<sha256> или файл сборки сайта"
+          additionalProperties: true
+        peopleSnapshot: { type: object, additionalProperties: true }
+        templateSnapshot: { type: object, additionalProperties: true }
+        lockVersion: { type: integer }
+    Session:
+      type: object
+      required: [accessToken, accessExpiresAt, me]
+      properties:
+        accessToken: { type: string }
+        accessExpiresAt: { type: string, format: date-time }
+        me: { $ref: "#/components/schemas/Me" }
+
+    Me:
+      type: object
+      required: [user, permissions, companyId, platform]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        permissions: { type: array, items: { type: string } }
+        companyId:
+          type: string
+          description: Выбранная компания; пусто – не выбрана.
+        platform: { type: boolean }
+
+    Profile:
+      type: object
+      properties:
+        employeeId: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        avatar: { type: string, description: Изображение в data:URL }
+
+    User:
+      allOf:
+        - $ref: "#/components/schemas/Profile"
+        - type: object
+          required: [id, login, displayName, role, companyIds, sectionIds, viewSectionIds, grantedActions,
+            blocked, hasPassword, createdAt, lockVersion]
+          properties:
+            id: { type: string }
+            login: { type: string }
+            displayName: { type: string }
+            role: { type: string, enum: [platform-admin, director, employee] }
+            companyIds:
+              type: array
+              items: { type: string }
+              description: Только компании, видимые тому, кто спрашивает.
+            sectionIds: { type: array, items: { type: string } }
+            viewSectionIds: { type: array, items: { type: string } }
+            grantedActions: { type: array, items: { type: string } }
+            blocked: { type: boolean }
+            hasPassword: { type: boolean }
+            createdAt: { type: string, format: date-time }
+            lockVersion: { type: integer }
+            position:
+              type: string
+              readOnly: true
+              description: Должность в персонале текущей компании того, кто спрашивает.
+
+    UserInput:
+      allOf:
+        - $ref: "#/components/schemas/Profile"
+        - type: object
+          required: [displayName, role]
+          properties:
+            displayName: { type: string, maxLength: 200 }
+            role: { type: string, enum: [platform-admin, director, employee] }
+            companyIds: { type: array, items: { type: string } }
+            sectionIds: { type: array, items: { type: string } }
+            viewSectionIds: { type: array, items: { type: string } }
+            grantedActions: { type: array, items: { type: string } }
+            blocked: { type: boolean }
+            position:
+              type: string
+              maxLength: 200
+              description: |
+                Только при создании: должность в персонале каждой выбранной
+                компании. В правке – 400: должность меняется в персонале.
+
+    PersonCard:
+      type: object
+      description: Пустое поле – «не заполнено», документ берёт русское значение.
+      required: [fullName, fullNameGenitive, position, unit]
+      properties:
+        fullName: { type: string, maxLength: 200, description: Это же имя учётной записи }
+        fullNameGenitive: { type: string, maxLength: 200, description: Для приказа; не вписан – как fullName }
+        fullNameKk: { type: string, maxLength: 200 }
+        fullNameKkDative: { type: string, maxLength: 200 }
+        fullNameEn: { type: string, maxLength: 200 }
+        position: { type: string, maxLength: 200, description: В этой компании }
+        positionKk: { type: string, maxLength: 200 }
+        positionEn: { type: string, maxLength: 200 }
+        unit: { type: string, maxLength: 200, description: В этой компании }
+        unitKk: { type: string, maxLength: 200 }
+        unitEn: { type: string, maxLength: 200 }
+
+    Person:
+      allOf:
+        - $ref: "#/components/schemas/PersonCard"
+        - type: object
+          required: [id, companyId, lockVersion]
+          properties:
+            id: { type: string, description: Идентификатор учётной записи }
+            companyId: { type: string }
+            lockVersion: { type: integer, description: Версия учётной записи }
+
+    ImportUser:
+      allOf:
+        - $ref: "#/components/schemas/Profile"
+        - type: object
+          required: [id, login, displayName, role]
+          properties:
+            id: { type: string }
+            login: { type: string }
+            displayName: { type: string }
+            role: { type: string }
+            companyIds: { type: array, items: { type: string } }
+            sectionIds: { type: array, items: { type: string } }
+            viewSectionIds: { type: array, items: { type: string } }
+            grantedActions: { type: array, items: { type: string } }
+            blocked: { type: boolean }
+            createdAt: { type: string, format: date-time }
+            position: { type: string, description: Уходит в персонал каждой компании человека }
+
+    Company:
+      type: object
+      description: |
+        Карточка компании как на сайте (web/src/api/types.ts, Company):
+        name и bin – отдельные проверяемые поля (БИН – с контрольной
+        цифрой), остальное хранится реквизитами целиком.
+      required: [name, bin]
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 200 }
+        bin: { type: string, pattern: "^[0-9]{12}$" }
+        lockVersion: { type: integer }

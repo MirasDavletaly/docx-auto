@@ -1,0 +1,238 @@
+.page {
+  min-height: 100vh;
+}
+
+.body {
+  display: grid;
+  gap: var(--space-7);
+  padding: var(--space-8) var(--space-9) var(--space-11);
+  max-width: 820px;
+}
+
+.block {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-7);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.blockTitle {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+.blockBody {
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+}
+
+/* ── Аватар ───────────────────────────────────────────────────────────── */
+
+.avatarRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-7);
+}
+
+/* Круглый, потому что это лицо человека, а не значок документа. Всё
+   остальное в системе – прямоугольное. */
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarLetters {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.avatarText {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.avatarTitle {
+  font-weight: 600;
+}
+
+.avatarHint {
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+}
+
+.avatarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.fileInput {
+  display: none;
+}
+
+/* ── Формы ────────────────────────────────────────────────────────────── */
+
+.form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-600);
+}
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-3) var(--space-4);
+  font: inherit;
+  font-size: var(--text-base);
+  color: var(--ink-900);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── Что показывается, но не правится ─────────────────────────────────── */
+
+.facts {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--space-6);
+  align-items: baseline;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.factLabel {
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+}
+
+.factValue {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.factNote {
+  margin-left: var(--space-4);
+  color: var(--ink-300);
+}
+
+/* ── Кнопки и сообщения ───────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-5);
+}
+
+.primary {
+  padding: var(--space-4) var(--space-7);
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-on);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.primary:hover {
+  background: var(--accent-hover);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.secondary {
+  padding: var(--space-3) var(--space-5);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.link {
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ok {
+  font-size: var(--text-sm);
+  color: var(--state-approved);
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+}
+
+@media (max-width: 720px) {
+  .body {
+    padding: var(--space-7) var(--space-6) var(--space-10);
+  }
+
+  .fact {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}

@@ -1,0 +1,535 @@
+/*
+  Лист А4.
+
+  Бланк повторяет настоящий документ группы – приказ «AL Nurdaulet KNT».
+  Все размеры сняты с самого файла:
+
+    поля страницы   720 твипов  = 12,7 мм
+    промежутки      пустыми абзацами: одна строка между блоками,
+                    две перед подписью, три перед листом ознакомления
+    наименование    18 полукегл = 9 пт, полужирный, по центру
+    город и дата    24 полукегл = 12 пт, полужирный
+    заголовок       24 полукегл = 12 пт, полужирный, по центру
+    тело таблицы    20 полукегл = 10 пт, по выключке
+    ознакомление    18 полукегл = 9 пт, курсив
+
+  Шрифт – Times New Roman: им набран образец. Размеры в пунктах, а не в
+  пикселях: документ печатают, и на бумаге он должен совпасть с исходным.
+  Где Times New Roman нет, лист набирается Tinos – он совпадает с ним по
+  меркам, и им же набран текст в PDF (styles/fonts.css).
+*/
+
+.sheet {
+  position: relative;
+  width: var(--sheet-width);
+  min-height: 297mm;
+  /* Поля страницы как в образце: 720 твипов со всех сторон. */
+  padding: 12.7mm;
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+
+  font-family: 'Times New Roman', Tinos, Times, serif;
+  font-size: 10pt;
+  line-height: 1.25;
+  color: #000;
+
+  /* Что бы человек ни вписал в поле, за поля страницы это не выйдет: слово
+     без пробелов переносится по буквам. Без этого строка вида «fsefsfsf…»
+     уезжала за край листа и печаталась обрезанной. */
+  overflow-wrap: anywhere;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Альбомный лист: широкие формы (накладная З-2, акт Р-1) и КП. При печати –
+   своя страница бумаги (@page landscape в styles/print.css). */
+.sheetLandscape {
+  width: 297mm;
+  min-height: 210mm;
+  page: landscape;
+}
+
+/* Листы одного документа – один под другим, с просветом, как в Word. */
+.pages {
+  display: grid;
+  gap: 8mm;
+}
+
+/* Кусок документа на листе. flow-root держит отступ блока внутри куска:
+   так высота куска одна и та же на любом листе, и раскладка не прыгает. */
+.fragment {
+  display: flow-root;
+}
+
+/* Строка таблицы, перенесённая отдельным куском: между строками тот же
+   промежуток, что был внутри одной таблицы, а не отступ перед таблицей. */
+.tableContinued > .triTable {
+  margin-top: 1.25em;
+}
+
+.tableContinued > .biTable {
+  margin-top: 0;
+}
+
+@media print {
+  .pages {
+    gap: 0;
+  }
+
+  /* Каждый лист – своя страница бумаги. */
+  .sheet {
+    break-after: page;
+  }
+
+  .sheet:last-child {
+    break-after: auto;
+  }
+}
+
+/* ── Шапка: логотип и наименование на трёх языках ─────────────────────── */
+
+/* Логотип стоит в колонтитуле – в самом верху листа, слева, – а наименование
+   на трёх языках идёт рядом с ним. Так собран бланк ТОО «Algoritmi KZ». */
+.letterhead {
+  display: flex;
+  align-items: center;
+  gap: 6mm;
+}
+
+.letterheadMark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40mm;
+  min-height: 14mm;
+  /* Логотипы приходят с прозрачным фоном: на белом листе это не видно, но
+     под ними не должно оказаться ничего постороннего. */
+  background: #fff;
+}
+
+.letterheadLogo {
+  max-width: 45mm;
+  max-height: 16mm;
+  object-fit: contain;
+}
+
+.letterheadMonogram {
+  display: grid;
+  place-items: center;
+  width: 12mm;
+  height: 12mm;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.letterheadNames {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.letterheadName {
+  font-size: 9pt;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* ── Город и дата ─────────────────────────────────────────────────────── */
+
+.placeDate {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8mm;
+  /* Одна пустая строка после наименования. */
+  margin-top: 15pt;
+
+  font-size: 12pt;
+  font-weight: 700;
+}
+
+.place {
+  min-width: 0;
+}
+
+.date {
+  flex: none;
+}
+
+/* ── Заголовок и строка распоряжения ──────────────────────────────────── */
+
+.orderTitle {
+  /* Одна пустая строка после города и даты. */
+  margin-top: 15pt;
+  font-size: 12pt;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.triLine {
+  /* Одна пустая строка после темы приказа. */
+  margin-top: 15pt;
+  font-size: 12pt;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
+/* ── Тело: колонки по числу языков, без линий ─────────────────────────── */
+
+.triTable {
+  /* Одна пустая строка перед таблицей: после заголовка и после «ПРИКАЗЫВАЮ». */
+  margin-top: 15pt;
+}
+
+.triRow {
+  display: grid;
+  /* Число колонок ставит компонент: три языка или один. */
+  gap: 4mm;
+  align-items: start;
+}
+
+.triRow + .triRow {
+  margin-top: 1.25em;
+}
+
+.triCell {
+  min-width: 0;
+  font-size: 10pt;
+  line-height: 1.25;
+  text-align: justify;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+/* Ровно одна пустая строка между абзацами в ячейке: так отделены тема
+   приказа от ссылки на статью и пункты распоряжения друг от друга. */
+.cellPara + .cellPara {
+  margin-top: 1.25em;
+}
+
+/* ── Подпись ──────────────────────────────────────────────────────────── */
+
+.signature {
+  /* Две пустые строки перед подписью. */
+  margin-top: 30pt;
+  font-size: 12pt;
+  font-weight: 700;
+}
+
+.signatureCaption {
+  /* Одна пустая строка между «Жұмыс беруші» и должностью. */
+  margin-bottom: 15pt;
+}
+
+/* Должность слева, подпись справа, между ними чистое место: черты здесь нет
+   (файл «Исправление.docx»). Обе колонки – строка в строку, поэтому фамилия
+   стоит ровно против той должности, что названа по-русски. */
+.signatureRows {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20mm;
+  line-height: 1.3;
+}
+
+.signatureRoles {
+  display: grid;
+}
+
+.signatureNames {
+  display: grid;
+  min-width: 0;
+  text-align: right;
+}
+
+/* ── Лист ознакомления ────────────────────────────────────────────────── */
+
+/* Лист ознакомления стоит справа, под подписью руководителя, а не слева
+   внизу (файл «Исправление.docx»). Ширина ограничена, чтобы он не расползался
+   на всю страницу. */
+.acquaint {
+  /* Три пустые строки перед листом ознакомления. */
+  margin-top: 39pt;
+  margin-left: auto;
+  width: 95mm;
+  font-size: 9pt;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+/* Черта набрана знаками подчёркивания, а не линией в оформлении: так в
+   документах группы, и так она переживает копирование текста из листа. */
+.acquaintLine {
+  margin-top: 3mm;
+  letter-spacing: -0.5pt;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* «Исполнен»: кто подготовил документ. Мелко, внизу листа. */
+.executor {
+  margin-top: 8mm;
+  font-size: 8pt;
+  line-height: 1.35;
+}
+
+/* ── Формы с таблицей позиций: акт Р-1, накладная З-2, счёт, КП ─────────
+   Размеры – по образцам форм приказа Минфина № 562: шапка 8 пт курсивом,
+   таблица 8–9 пт с тонкой рамкой, заголовок 11 пт полужирным. */
+
+.formNote {
+  margin-left: auto;
+  width: max-content;
+  max-width: 60%;
+  font-size: 8pt;
+  font-style: italic;
+  text-align: right;
+  line-height: 1.3;
+}
+
+.formLogo {
+  margin-bottom: 4mm;
+}
+
+.formLogoImage {
+  display: block;
+  max-height: 22mm;
+  max-width: 90mm;
+  object-fit: contain;
+}
+
+.spaced {
+  margin-top: 1.25em;
+}
+
+.formPara {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.formPara.spaced {
+  margin-top: 1em;
+}
+
+.formTitle {
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.strongText {
+  font-weight: 700;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.small {
+  font-size: 8pt;
+}
+
+.alignCenter {
+  text-align: center;
+}
+
+.alignRight {
+  text-align: right;
+}
+
+.alignJustify {
+  text-align: justify;
+}
+
+.grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 9pt;
+  line-height: 1.2;
+}
+
+.gridCell {
+  padding: 1pt 3pt;
+  vertical-align: top;
+}
+
+.gridPara {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.cellBox {
+  border: 0.75pt solid #000;
+}
+
+/* Строка для заполнения: значение над чертой, подпись – под ней. */
+.lineValue {
+  min-height: 1.2em;
+  border-bottom: 0.75pt solid #000;
+}
+
+.gridCaption {
+  padding-top: 1pt;
+  font-size: 7pt;
+  font-style: italic;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.valignMiddle {
+  vertical-align: middle;
+}
+
+.valignBottom {
+  vertical-align: bottom;
+}
+
+/* Таблица позиций: шапка и строки – отдельные куски раскладки, поэтому у
+   строк нет верхней черты – её рисует нижняя черта строки выше. */
+.itemsHead {
+  margin-top: 1em;
+  font-size: 8pt;
+}
+
+.itemsRow .cellBox {
+  border-top: 0;
+}
+
+/* Строка, с которой начинается лист: строка выше со своей нижней чертой
+   осталась на прошлом листе, и верхнюю черту строка рисует сама. */
+.pageTop .itemsRow .cellBox {
+  border-top: 0.75pt solid #000;
+}
+
+/* ── Подстановки ──────────────────────────────────────────────────────── */
+
+.value {
+  /* Значение ничем не выделяется: на бумаге оно неотличимо от текста. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+/* Поле, на котором стоит курсор в форме. Только на экране: при печати
+   подсветка снимается (styles/print.css). */
+.valueActive {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+
+/* Незаполненное поле: пропуск постоянной ширины, как на бланке. */
+/* Пропуск – знаки подчёркивания в самом тексте (DocumentSheet.tsx, BLANK):
+   стоит на строке, как в бумажном бланке, а не черта посреди строки. */
+.blank {
+  overflow-wrap: anywhere;
+}
+
+.blankActive {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── Номер документа ──────────────────────────────────────────────────── */
+
+.numberValue {
+  font-weight: 700;
+}
+
+.numberBlank {
+  letter-spacing: 0.05em;
+}
+
+.numberHighlight {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Бланк доверенности: две колонки
+
+   Доверенность выпускается на русском и английском: казахской колонки в
+   присланных образцах нет.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.poaTitle,
+.biRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8mm;
+  align-items: start;
+}
+
+.poaTitle {
+  margin-top: 6mm;
+}
+
+.poaTitleCell {
+  text-align: center;
+}
+
+.poaTitleText {
+  font-size: 11pt;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.poaTitleMeta {
+  margin-top: 2mm;
+  font-size: 9.5pt;
+  font-style: italic;
+}
+
+.biTable {
+  margin-top: 5mm;
+}
+
+.biRow {
+  padding: 2mm 0;
+}
+
+.biCell {
+  min-width: 0;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  text-align: justify;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+.poaSignature {
+  margin-top: 14mm;
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.poaSignatureLine {
+  margin-bottom: 2mm;
+  letter-spacing: -0.5pt;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Часть строки, разорванной между листами: окно нужной высоты, в котором
+   строка сдвинута на уже показанное на прошлом листе. */
+.slice {
+  overflow: hidden;
+}

@@ -1,0 +1,72 @@
+# Секреты
+.env
+.env.*
+!.env.example
+
+# Go
+/backend/bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Node
+node_modules/
+/web/dist/
+/web/.vite/
+*.tsbuildinfo
+
+# Инструменты
+/bin/
+/tmp/
+
+# Локальные данные контейнеров
+/infra/.data/
+
+# Редакторы и ОС
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Пакеты для сервера (scripts/deploy/pack.ps1)
+/dist-deploy/
+
+# Журнал запросов веб-сервера на сервере (deploy/setup-server.sh)
+/deploy/logs/
+
+# Local secrets, state, dependencies, and generated packages
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.test-output/
+.dev-cert/
+*.pem
+*.key
+*.pfx
+*.p12
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+data/
+state/
+backups/
+build/
+dist/
+dist-deploy/
+release/
+*.zip
+*.tar
+*.tar.gz
+*.exe
+ADMIN-LINK.txt

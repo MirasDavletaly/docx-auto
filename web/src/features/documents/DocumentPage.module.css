@@ -1,0 +1,245 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ── Верхняя полоса ───────────────────────────────────────────────────── */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-9);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.back {
+  color: var(--ink-500);
+  font-size: var(--text-sm);
+}
+
+.back:hover {
+  color: var(--ink-900);
+  text-decoration: none;
+}
+
+.barActions {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.print {
+  height: 38px;
+  padding: 0 var(--space-7);
+  background: var(--accent);
+  color: var(--accent-on);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background 120ms ease;
+}
+
+.print:hover {
+  background: var(--accent-hover);
+}
+
+/* ── Тело ─────────────────────────────────────────────────────────────── */
+
+.body {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-9);
+  padding: var(--space-8) var(--space-9) var(--space-11);
+  align-items: start;
+}
+
+.side {
+  position: sticky;
+  top: calc(var(--topbar-height) + var(--space-8));
+  display: grid;
+  gap: var(--space-6);
+  /* Колонка не раздвигается длинным текстом: без этого слово без пробелов
+     выталкивало её под лист («Тест день 4»). */
+  min-width: 0;
+}
+
+.saved {
+  padding: var(--space-5);
+  background: var(--state-approved-soft);
+  border-left: 2px solid var(--state-approved);
+}
+
+.savedTitle {
+  font-weight: 600;
+  color: var(--state-approved);
+}
+
+.savedBody {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+/* ── Реквизиты ────────────────────────────────────────────────────────── */
+
+.meta {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.metaRow {
+  display: grid;
+  /* Значение справа может быть длинным («для кого» без пробелов) – его
+     колонка сжимается и переносит текст, а не раздвигает боковую панель. */
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: baseline;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.metaRow dt {
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+}
+
+.metaRow dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.metaMuted {
+  color: var(--ink-300);
+}
+
+.description {
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border-left: 2px solid var(--line-strong);
+}
+
+.descriptionTitle {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+.descriptionBody {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+  white-space: pre-wrap;
+  /* Длинное описание переносится вниз, как Enter в Word, а не уезжает под
+     лист A4 («Тест день 4»): слово без пробелов тоже рвётся на строки. */
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--ink-500);
+}
+
+.note {
+  padding-top: var(--space-5);
+  border-top: 1px dashed var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-400);
+}
+
+/* ── Лист ─────────────────────────────────────────────────────────────── */
+
+.sheetArea {
+  min-width: 0;
+}
+
+.missing {
+  display: grid;
+  gap: var(--space-5);
+  justify-items: start;
+  padding: var(--space-10) var(--space-9);
+}
+
+@media (max-width: 1000px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: var(--space-7);
+    padding: var(--space-7) var(--space-6) var(--space-10);
+  }
+
+  .side {
+    position: static;
+  }
+
+  .bar {
+    padding: var(--space-5) var(--space-6);
+  }
+}
+
+/* Черновик: тот же формат сообщения, что и «сохранён», но охрой. */
+.draftNote {
+  padding: var(--space-5);
+  background: var(--state-draft-soft);
+  border-left: 2px solid var(--state-draft);
+}
+
+.draftNote .savedTitle {
+  color: var(--state-draft);
+}
+
+/* Реквизиты в этом документе заморожены снимком. */
+.snapshot {
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border-left: 2px solid var(--line-strong);
+}
+
+.edit {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--ink-600);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.edit:hover {
+  border-color: var(--accent-line);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.delete {
+  height: 38px;
+  padding: 0 var(--space-6);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--state-rejected);
+  background: var(--paper);
+  border: 1px solid var(--state-rejected-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.delete:hover {
+  border-color: var(--state-rejected);
+}

@@ -1,0 +1,63 @@
+/*
+  Печать.
+
+  Пока серверная сборка .docx → PDF не поднята, «Сохранить в PDF» делается
+  печатью страницы в браузере. Чтобы это давало настоящий документ, а не
+  снимок экрана, при печати остаётся только лист: интерфейс скрывается,
+  поля страницы обнуляются, а собственные поля листа (--sheet-padding-*)
+  становятся полями бумаги.
+
+  Класс .print-root ставится на обёртку листа.
+*/
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Альбомные листы (накладная З-2, КП) – своя страница бумаги:
+     лист с классом .sheetLandscape ставит `page: landscape`. */
+  @page landscape {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    height: auto;
+    background: #fff;
+  }
+
+  /* Скрываем через visibility, а не display: так лист сохраняет своё
+     положение в потоке и не теряет разбивку на страницы. */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-root,
+  .print-root * {
+    visibility: visible;
+  }
+
+  .print-root {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  /* Чёрный текст на белом: цветные акценты на принтере становятся серыми
+     пятнами и мешают читать документ. */
+  .print-root {
+    color: #000;
+  }
+
+  /* Сноски и пометки интерфейса на бумаге не нужны. */
+  .no-print {
+    display: none !important;
+  }
+}

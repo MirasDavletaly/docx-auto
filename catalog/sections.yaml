@@ -1,0 +1,179 @@
+# Разделы и подразделы системы.
+#
+# Отсюда строится меню сайта и экран «Создать документ». Разделы — это данные,
+# а не код: новый раздел не требует программиста (docs/architecture.md, п. 1).
+#
+# id используется в правах доступа: <раздел>.<профиль>.<действие>, например
+# hr.sensitive.view. Менять id после запуска нельзя — он попадёт в роли и токены.
+#
+# Источник: catalog/source/documents-list.txt.
+
+version: 1
+
+sections:
+  - id: hr
+    order: 1
+    title:
+      ru: Отдел кадров
+      kk: Кадр бөлімі
+    short:
+      ru: Кадры
+    subsections:
+      - id: hr-personnel-orders
+        title: { ru: Приказы по личному составу }
+      - id: hr-activity-orders
+        title: { ru: Приказы по основной деятельности }
+      - id: hr-documents
+        title: { ru: Кадровые документы }
+      - id: hr-policies
+        title: { ru: Локальные акты }
+
+  - id: legal
+    order: 2
+    title:
+      ru: Юридический отдел
+      kk: Заң бөлімі
+    short:
+      ru: Юристы
+    subsections:
+      - id: legal-contracts
+        title: { ru: Договоры }
+      - id: legal-claims
+        title: { ru: Претензионная и судебная работа }
+      - id: legal-powers
+        title: { ru: Доверенности }
+      - id: legal-other
+        title: { ru: Прочее }
+
+  - id: corporate
+    order: 3
+    title:
+      ru: Корпоративное управление
+      kk: Корпоративтік басқару
+    short:
+      ru: Корпоративное
+    subsections:
+      - id: corporate-founding
+        title: { ru: Учредительные документы }
+      - id: corporate-decisions
+        title: { ru: Решения органов управления }
+      - id: corporate-policies
+        title: { ru: Внутренние положения }
+      - id: corporate-orders
+        title: { ru: Приказы руководителя }
+
+  - id: finance
+    order: 4
+    title:
+      ru: Финансы и бухгалтерия
+      kk: Қаржы және бухгалтерия
+    short:
+      ru: Финансы
+    subsections:
+      - id: finance-orders
+        title: { ru: Приказы }
+      - id: finance-primary
+        title: { ru: Первичные документы }
+      - id: finance-planning
+        title: { ru: Планирование и казначейство }
+      - id: finance-reporting
+        title: { ru: Отчётность и регистры }
+      - id: finance-policies
+        title: { ru: Положения }
+
+  - id: procurement-sales
+    order: 5
+    title:
+      ru: Закупки и продажи
+      kk: Сатып алу және сату
+    short:
+      ru: Закупки
+    subsections:
+      - id: procurement
+        title: { ru: Закупки и снабжение }
+      - id: sales
+        title: { ru: Продажи }
+
+  - id: warehouse
+    order: 6
+    title:
+      ru: Склад и логистика
+      kk: Қойма және логистика
+    short:
+      ru: Склад
+    subsections: []
+
+  - id: administration
+    order: 7
+    title:
+      ru: Административно-хозяйственный отдел
+      kk: Әкімшілік-шаруашылық бөлім
+    short:
+      ru: АХО
+    subsections:
+      - id: administration-records
+        title: { ru: Делопроизводство }
+      - id: administration-facilities
+        title: { ru: Хозяйственная часть }
+
+  - id: projects
+    order: 8
+    title:
+      ru: Проекты
+      kk: Жобалар
+    short:
+      ru: Проекты
+    subsections:
+      - id: projects-initiation
+        title: { ru: Инициация }
+      - id: projects-planning
+        title: { ru: Планирование }
+      - id: projects-execution
+        title: { ru: Исполнение и контроль }
+      - id: projects-closing
+        title: { ru: Закрытие }
+      - id: projects-construction
+        title: { ru: Строительные и инженерные проекты }
+      - id: projects-policies
+        title: { ru: Положения }
+
+  - id: it-security
+    order: 9
+    title:
+      ru: ИТ и информационная безопасность
+      kk: АТ және ақпараттық қауіпсіздік
+    short:
+      ru: ИТ и ИБ
+    subsections:
+      - id: it
+        title: { ru: ИТ }
+      - id: security
+        title: { ru: Информационная безопасность }
+
+  - id: hse
+    order: 10
+    title:
+      ru: Охрана труда, промышленная безопасность и экология
+      kk: Еңбекті қорғау, өнеркәсіптік қауіпсіздік және экология
+    short:
+      ru: HSE
+    subsections:
+      - id: hse-general
+        title: { ru: Общие документы }
+      - id: hse-labour
+        title: { ru: Охрана труда }
+      - id: hse-incidents
+        title: { ru: Несчастные случаи и происшествия }
+      - id: hse-fire
+        title: { ru: Пожарная и промышленная безопасность }
+      - id: hse-ecology
+        title: { ru: Экология }
+
+  - id: marketing
+    order: 11
+    title:
+      ru: Маркетинг
+      kk: Маркетинг
+    short:
+      ru: Маркетинг
+    subsections: []

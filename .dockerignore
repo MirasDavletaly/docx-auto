@@ -1,0 +1,13 @@
+# Контекст сборки deploy/Dockerfile – корень проекта. Нужны только web/ и
+# deploy/Caddyfile; остальное не уходит в Docker.
+.git
+**/node_modules
+web/dist
+web/.vite
+backend
+catalog
+docs
+scripts
+dist-deploy
+**/.env
+**/*.log
